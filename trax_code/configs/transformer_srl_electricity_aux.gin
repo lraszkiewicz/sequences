@@ -1,0 +1,60 @@
+import trax.data.tf_inputs
+import trax.models
+import trax.optimizers
+import trax.supervised.trainer_lib
+
+# Module trax.data.inputs:
+# ==============================================================================
+CreateGluonTSInputs.dataset_path = 'data/electricity_nips_small'
+CreateGluonTSInputs.batch_size = 64
+CreateGluonTSInputs.max_length = 100
+
+# Module trax.models.transformer:
+# ==============================================================================
+TransformerLMAux.d_model = 128
+TransformerLMAux.d_ff = 256
+TransformerLMAux.dropout = 0.1
+TransformerLMAux.max_len = 2048
+TransformerLMAux.mode = 'train'
+TransformerLMAux.n_heads = 2
+TransformerLMAux.n_layers = 2
+
+# Module trax.rl.serialization_utils:
+# ==============================================================================
+TimeSeriesModelAux.seq_model = @trax.models.TransformerLMAux
+TimeSeriesModelAux.low = 0.0
+TimeSeriesModelAux.high = 50000.0
+TimeSeriesModelAux.precision = 2
+TimeSeriesModelAux.vocab_size = 16
+TimeSeriesModelAux.aux_vocab_size = 24
+TimeSeriesModelAux.significance_decay = 0.7
+
+# Module trax.rl.space_serializer:
+# ==============================================================================
+BoxSpaceSerializer.max_range = (0.0, 50000.0)
+
+# Module trax.supervised.lr_schedules:
+# ==============================================================================
+multifactor.constant = 0.1
+multifactor.factors = 'constant * linear_warmup * rsqrt_decay'
+multifactor.warmup_steps = 1000
+
+# Module trax.supervised.trainer_lib:
+# ==============================================================================
+train.inputs = @trax.data.CreateGluonTSInputs
+train.eval_frequency = 500
+train.eval_steps = 10
+train.model = @trax.rl.TimeSeriesModelAux
+train.optimizer = @trax.optimizers.Adam
+train.steps = 10000
+train.callbacks = (
+    @trax.supervised.callbacks.SerializedModelEvaluation,
+)
+
+# Module trax.supervised.callbacks:
+# ==============================================================================
+SerializedModelEvaluation.eval_at = 500
+SerializedModelEvaluation.context_lengths = (76,)
+SerializedModelEvaluation.horizon_lengths = (24,)
+SerializedModelEvaluation.n_steps = 20
+SerializedModelEvaluation.model_with_aux = True
